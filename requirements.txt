@@ -1,0 +1,8 @@
+pandas
+numpy
+streamlit
+matplotlib
+seaborn
+openai
+python-dotenv
+tenacity
