@@ -37,6 +37,17 @@ echo "Installing dependencies..."
 pip install -r requirements.txt
 
 # -----------------------------
+# Ensure OpenAI API key
+# -----------------------------
+if [ -z "$OPENAI_API_KEY" ]; then
+  echo "OpenAI API key not found in environment."
+  echo -n "Please enter your OpenAI API key: "
+  read -s OPENAI_API_KEY
+  echo ""
+  export OPENAI_API_KEY
+fi
+
+# -----------------------------
 # Run Streamlit app
 # -----------------------------
 echo "Starting Streamlit app..."
