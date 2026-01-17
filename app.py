@@ -46,8 +46,8 @@ def ensure_db_and_data() -> str:
 
 
 def main() -> None:
-    st.set_page_config(page_title="Trade Surveillance Dashboard", layout="wide")
-    st.title("Trade Surveillance Dashboard")
+    st.set_page_config(page_title="Trade analysis Dashboard", layout="wide")
+    st.title("Trade analysis Dashboard")
 
     # ---- startup init ----
     dataset_id = ensure_db_and_data()
