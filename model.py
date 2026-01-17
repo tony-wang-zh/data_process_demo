@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Dict, List, Any, Literal
 
+import pandas as pd
+
 Action = Literal["BUY", "SELL"]
 
 @dataclass(frozen=True)
@@ -44,3 +46,11 @@ class InsightResult:
     prompt_version: str
     content_markdown: str         # ready to render in UI
     raw_json: Optional[Dict[str, Any]] = None  # optional structured output
+
+@dataclass(frozen=True)
+class IngestResult:
+    dataset_meta: DatasetMeta
+    data_quality: DataQualityReport
+    accepted_preview: pd.DataFrame   # small preview for UI
+    rejected_preview: pd.DataFrame   # small preview for UI
+    exists: bool

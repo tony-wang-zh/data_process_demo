@@ -7,15 +7,11 @@ import hashlib
 from pathlib import Path
 import pandas as pd
 from typing import Dict, List
+from datetime import datetime
 
-from model import DataQualityReport, DatasetMeta
+from model import DataQualityReport, DatasetMeta, IngestResult
+import storage 
 
-@dataclass(frozen=True)
-class IngestResult:
-    dataset_meta: DatasetMeta
-    data_quality: DataQualityReport
-    accepted_preview: pd.DataFrame   # small preview for UI
-    rejected_preview: pd.DataFrame   # small preview for UI
 
 # timestamp,ticker,action,quantity,price,trader_id
 REQUIRED_COLUMNS = ["timestamp", "ticker", "action", "quantity", "price", "trader_id"]
@@ -184,14 +180,70 @@ returns info about dataset (IngestResult)
 """
 def ingest_csv_into_db(
     conn: sqlite3.Connection,
-    csv_bytes: bytes,
+    csv_path: str,
     source_name: str,
     replace_if_exists: bool = False,
+    preview_rows: int = 5,
 ) -> IngestResult:
-    """
-    End-to-end:
-      - dataset_id = hash(csv)
-      - if exists and not replace: no-op (or return existing meta)
-      - else: clean -> insert accepted -> store rejected -> store meta
-    """
-    return None
+    # check if dataset of this csv file already exists
+    dataset_id = compute_dataset_id(csv_path)
+    existing = storage.get_dataset_meta_by_id(conn, dataset_id)
+    if existing is not None and not replace_if_exists:
+        # Return existing + previews from DB (no re-ingest)
+        accepted_preview = storage.fetch_transactions(conn, dataset_id, limit=preview_rows)
+        rejected_preview = storage.fetch_rejected_rows(conn, dataset_id, limit=preview_rows)
+
+        # We don't store full DataQualityReport separately in this implementation,
+        # so return a minimal report consistent with meta.
+        dqr = DataQualityReport(
+            total_rows=existing.total_rows,
+            accepted_rows=existing.accepted_rows,
+            rejected_rows=existing.rejected_rows,
+            reasons_count={},
+        )
+
+        return IngestResult(
+            dataset_meta=existing,
+            data_quality=dqr,
+            accepted_preview=accepted_preview,
+            rejected_preview=rejected_preview,
+            exists=True,
+        )
+
+    # Read + validate/clean
+    df_raw = read_csv_bytes(csv_path)
+    df_clean, df_rejected, dqr = validate_and_clean(df_raw)
+
+    # If replacing, clear prior rows for this dataset_id (if any)
+    if existing is not None and replace_if_exists:
+        conn.execute("DELETE FROM transactions WHERE dataset_id = ?", (dataset_id,))
+        conn.execute("DELETE FROM rejected_rows WHERE dataset_id = ?", (dataset_id,))
+        conn.execute("DELETE FROM insights WHERE dataset_id = ?", (dataset_id,))
+        conn.commit()
+
+    # Upsert dataset metadata + DQ report
+    meta = DatasetMeta(
+        dataset_id=dataset_id,
+        source_name=source_name,
+        ingested_at=datetime.now(),
+        total_rows=dqr.total_rows,
+        accepted_rows=dqr.accepted_rows,
+        rejected_rows=dqr.rejected_rows,
+    )
+    storage.upsert_dataset_meta(conn, meta, dqr)
+
+    # Insert accepted + rejected
+    storage.insert_transactions(conn, dataset_id, df_clean)
+    storage.insert_rejected_rows(conn, dataset_id, df_rejected)
+
+    # Previews
+    accepted_preview = storage.fetch_transactions(conn, dataset_id, limit=preview_rows)
+    rejected_preview = storage.fetch_rejected_rows(conn, dataset_id, limit=preview_rows)
+
+    return IngestResult(
+        dataset_meta=meta,
+        data_quality=dqr,
+        accepted_preview=accepted_preview,
+        rejected_preview=rejected_preview,
+        exists=False,
+    )

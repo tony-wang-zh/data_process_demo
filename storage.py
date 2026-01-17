@@ -179,7 +179,40 @@ def upsert_dataset_meta(conn: sqlite3.Connection, meta: DatasetMeta, dqr: DataQu
     conn.commit()
 
 """
+    Return dataset meta by id
+    can be used to check if a specific csv is ingested 
+"""
+def get_dataset_meta_by_id(conn: sqlite3.Connection, dataset_id: str) -> Optional[DatasetMeta]:
+    row = conn.execute(
+        """
+        SELECT dataset_id, source_name, ingested_at, total_rows, accepted_rows, rejected_rows
+        FROM datasets
+        WHERE dataset_id = ?
+        """,
+        (dataset_id,),
+    ).fetchone()
+
+    if row is None:
+        return None
+
+    try:
+        ingested_at_dt = datetime.fromisoformat(row["ingested_at"])
+    except Exception:
+        ingested_at_dt = datetime.strptime(row["ingested_at"], "%Y-%m-%d %H:%M:%S")
+
+    return DatasetMeta(
+        dataset_id=row["dataset_id"],
+        source_name=row["source_name"],
+        ingested_at=ingested_at_dt,
+        total_rows=row["total_rows"],
+        accepted_rows=row["accepted_rows"],
+        rejected_rows=row["rejected_rows"],
+    )
+
+
+"""
     Return newest dataset meta, if any.
+    can be used to check any dataset is populated 
 """
 def get_latest_dataset_meta(conn: sqlite3.Connection) -> Optional[DatasetMeta]:
     row = conn.execute(
