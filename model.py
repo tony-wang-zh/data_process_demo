@@ -26,7 +26,6 @@ class DataQualityReport:
     accepted_rows: int
     rejected_rows: int
     reasons_count: Dict[str, int]  # e.g., {"missing_price": 3, "bad_timestamp": 2}
-    notes: List[str]              # human-readable notes for UI
 
 @dataclass(frozen=True)
 class DatasetMeta:
