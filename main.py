@@ -1,6 +1,7 @@
 import ingest
 import storage
 import analytics
+import llm_client
 from datetime import datetime
 from pathlib import Path
 from model import DatasetMeta, Transaction
@@ -45,6 +46,24 @@ def main():
     print(bundle.time_series.head(5))
     print(bundle.anomalies.head(5))
     print(bundle.llm_summary)
+
+    # --- insight  ---
+    # ---- call OpenAI (structured) ----
+    insight = llm_client.generate_and_store_insight_structured(
+        conn=conn,
+        dataset_id=dataset_id,
+        llm_summary=bundle.llm_summary,
+        force=True,          # force refresh for testing
+    )
+
+    # ---- display result ----
+    print("\n===== LLM MARKDOWN OUTPUT =====\n")
+    print(insight.content_markdown)
+
+    print("\n===== RAW STRUCTURED JSON =====\n")
+    print(insight.raw_json)
+
+    conn.close()
 
     conn.close()
 
