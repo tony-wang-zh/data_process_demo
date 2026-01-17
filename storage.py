@@ -250,6 +250,13 @@ def get_latest_dataset_meta(conn: sqlite3.Connection) -> Optional[DatasetMeta]:
         rejected_rows=row["rejected_rows"],
     )
 
+def get_latest_dataset_id(conn: sqlite3.Connection) -> str | None:
+    latest_dataset_meta = get_latest_dataset_meta(conn)
+    if latest_dataset_meta is not None:
+        return latest_dataset_meta.dataset_id
+    else:
+        return None
+
 # ---- transactions ----
 """
     Bulk insert transactions for a dataset. 
@@ -318,7 +325,7 @@ def fetch_transactions(
     trader_id: Optional[str] = None,
     start_ts: Optional[datetime] = None,
     end_ts: Optional[datetime] = None,
-    limit: int = 1031,
+    limit: Optional[int] = None,
 ) -> pd.DataFrame:
     where: List[str] = ["dataset_id = ?"]
     params: List[Any] = [dataset_id]
@@ -347,9 +354,10 @@ def fetch_transactions(
         FROM transactions
         WHERE {where_sql}
         ORDER BY timestamp ASC, id ASC
-        LIMIT ?
     """
-    params.append(int(limit))
+    if limit is not None:
+        sql += "LIMIT ?"
+        params.append(int(limit))
 
     df = pd.read_sql_query(sql, conn, params=params)
 

@@ -1,5 +1,6 @@
 import ingest
 import storage
+import analytics
 from datetime import datetime
 from pathlib import Path
 from model import DatasetMeta, Transaction
@@ -22,19 +23,28 @@ def main():
 
     dataset_meta = storage.get_latest_dataset_meta(conn)
 
-    if not dataset_meta:
-        print("\n no dataset found")
-    else:
-        # ---- query back data ----
-        print("\nLatest dataset meta:")
-        print(dataset_meta)
+    assert dataset_meta is not None
 
-        dataset_id = dataset_meta.dataset_id
-        print("\nFirst 5 transactions:")
-        print(storage.fetch_transactions(conn, dataset_id, limit=5))
+    # ---- check query back data ----
+    print(" --- Overview --- ")
+    print("\nLatest dataset meta:")
+    print(dataset_meta)
 
-        print("\nFirst 5 rejected rows:")
-        print(storage.fetch_rejected_rows(conn, dataset_id, limit=5))
+    dataset_id = dataset_meta.dataset_id
+    print("\nFirst 5 transactions:")
+    print(storage.fetch_transactions(conn, dataset_id, limit=5))
+
+    print("\nFirst 5 rejected rows:")
+    print(storage.fetch_rejected_rows(conn, dataset_id, limit=5))
+
+    # --- check analytics ---
+    bundle = analytics.compute_analytics_bundle(conn, dataset_id)
+    print(" --- analytics --- ")
+    print(bundle.per_ticker.head(5))
+    print(bundle.per_trader.head(5))
+    print(bundle.time_series.head(5))
+    print(bundle.anomalies.head(5))
+    print(bundle.llm_summary)
 
     conn.close()
 
