@@ -177,9 +177,10 @@ def validate_and_clean(df_raw: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame
 
 
 """
+overall preprocessing method 
 read csv, validate and clean rows, 
 call into storage method to create and populate database
-output: info about dataset (IngestResult)
+returns info about dataset (IngestResult)
 """
 def ingest_csv_into_db(
     conn: sqlite3.Connection,
